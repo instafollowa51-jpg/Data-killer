@@ -113,45 +113,33 @@ fun LiquidGlassCard(
     val config = customConfig ?: LocalLiquidGlassConfig.current
     val density = LocalDensity.current
 
-    val infiniteTransition = rememberInfiniteTransition(label = "glass_glow")
-    val pulseGlow by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 0.9f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1800, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulse_glow"
-    )
-
-    val effectiveGlow = if (isGlowActive) pulseGlow * glowIntensity else 0.15f
     val vibrancyFactor = config.vibrancy.coerceIn(0f, 1f)
     val refractionFactor = config.lensRefractionAmount.coerceIn(0f, 1f)
     val refractionHeightFactor = config.lensRefractionHeight.coerceIn(0f, 1f)
-    val blurRadiusPx = with(density) { config.blurRadiusDp.dp.toPx() }
+    val blurFactor = (config.blurRadiusDp / 50f).coerceIn(0f, 1f)
     val depthShadowPx = with(density) { config.depthEffectDp.dp.toPx() }
 
-    // Multi-layer Acrylic Vibrancy Gradient with translucent light dispersion
-    val baseSurfaceAlpha = (0.78f - (1f - vibrancyFactor) * 0.15f).coerceIn(0.50f, 0.95f)
-    val midSurfaceAlpha = (0.55f + vibrancyFactor * 0.20f).coerceIn(0.35f, 0.85f)
-    val bottomSurfaceAlpha = (0.85f - (1f - vibrancyFactor) * 0.10f).coerceIn(0.60f, 0.95f)
+    // Multi-stop Acrylic Vibrancy Substrate with Optical Light Dispersion
+    val baseSurfaceAlpha = (0.82f - blurFactor * 0.18f + (1f - vibrancyFactor) * 0.10f).coerceIn(0.55f, 0.95f)
+    val midSurfaceAlpha = (0.60f + vibrancyFactor * 0.18f).coerceIn(0.40f, 0.88f)
+    val bottomSurfaceAlpha = (0.88f - blurFactor * 0.12f).coerceIn(0.65f, 0.96f)
 
     val glassBackgroundBrush = Brush.verticalGradient(
         colors = listOf(
             ObsidianSurfaceElevated.copy(alpha = baseSurfaceAlpha),
-            accentColor.copy(alpha = 0.08f * vibrancyFactor),
+            accentColor.copy(alpha = 0.09f * vibrancyFactor),
             ObsidianSurfaceElevated.copy(alpha = midSurfaceAlpha),
             ObsidianDark.copy(alpha = bottomSurfaceAlpha)
         )
     )
 
-    // Dual-layer Refraction Specular Bevel Border
+    // Optical Specular Bevel Border (Refraction Amount)
     val borderBrush = Brush.linearGradient(
         colors = listOf(
-            Color.White.copy(alpha = 0.55f * refractionFactor + (if (isGlowActive) effectiveGlow * 0.3f else 0f)),
-            accentColor.copy(alpha = if (isGlowActive) effectiveGlow + 0.35f else 0.35f * refractionFactor),
-            GlassSpecularShine.copy(alpha = 0.40f * refractionFactor),
-            ObsidianBorder.copy(alpha = 0.35f)
+            Color.White.copy(alpha = (0.45f * refractionFactor + if (isGlowActive) 0.35f * glowIntensity else 0.05f).coerceIn(0f, 0.9f)),
+            accentColor.copy(alpha = if (isGlowActive) 0.40f * glowIntensity else 0.28f * refractionFactor),
+            GlassSpecularShine.copy(alpha = 0.35f * refractionFactor),
+            ObsidianBorder.copy(alpha = 0.30f)
         ),
         start = Offset(0f, 0f),
         end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
@@ -159,63 +147,47 @@ fun LiquidGlassCard(
 
     Box(
         modifier = modifier
-            // 1. Layer 1: Ambient Occlusion & Depth Shadow
+            // 1. Layer 1: Ambient Occlusion & Multi-layered Depth Shadow
             .drawBehind {
                 if (depthShadowPx > 0f) {
-                    val shadowAlpha = (0.40f * (config.depthEffectDp / 16f)).coerceIn(0.1f, 0.7f)
-                    val glowAlpha = if (isGlowActive) 0.25f * effectiveGlow else 0.06f * vibrancyFactor
-                    
-                    // Ambient drop shadow
+                    val shadowAlpha = (0.35f * (config.depthEffectDp / 16f)).coerceIn(0.08f, 0.65f)
+                    val glowAlpha = if (isGlowActive) 0.20f * glowIntensity else 0.04f * vibrancyFactor
+
+                    // Deep ambient drop shadow
                     drawRoundRect(
                         color = Color.Black.copy(alpha = shadowAlpha),
-                        topLeft = Offset(0f, depthShadowPx * 0.35f),
+                        topLeft = Offset(0f, depthShadowPx * 0.30f),
                         size = size,
                         cornerRadius = CornerRadius(with(density) { 22.dp.toPx() })
                     )
-                    // Vibrancy ambient colored back-glow
+
+                    // Optical vibrancy ambient colored back-glow
                     if (glowAlpha > 0.01f) {
                         drawRoundRect(
                             color = accentColor.copy(alpha = glowAlpha),
-                            topLeft = Offset(-depthShadowPx * 0.1f, -depthShadowPx * 0.1f),
-                            size = Size(size.width + depthShadowPx * 0.2f, size.height + depthShadowPx * 0.2f),
+                            topLeft = Offset(-depthShadowPx * 0.08f, -depthShadowPx * 0.08f),
+                            size = Size(size.width + depthShadowPx * 0.16f, size.height + depthShadowPx * 0.16f),
                             cornerRadius = CornerRadius(with(density) { 24.dp.toPx() })
                         )
                     }
                 }
             }
             .clip(shape)
-            // 2. Hardware RenderEffect Blur (Android 12+ API 31) with backward compatibility
-            .then(
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && blurRadiusPx > 1f) {
-                    Modifier.graphicsLayer {
-                        try {
-                            renderEffect = RenderEffect.createBlurEffect(
-                                blurRadiusPx.coerceIn(1f, 80f),
-                                blurRadiusPx.coerceIn(1f, 80f),
-                                Shader.TileMode.CLAMP
-                            ).asComposeRenderEffect()
-                        } catch (_: Exception) {}
-                    }
-                } else {
-                    Modifier
-                }
-            )
-            // 3. Liquid Glass Acrylic Substrate
+            // 2. Liquid Glass Acrylic Substrate
             .background(glassBackgroundBrush)
-            // 4. Optical Lens Refraction Height: Top Specular Curvature & Bevel Sheen
+            // 3. Optical Lens Refraction Height: Convex Top Specular Curvature Highlight
             .drawWithContent {
                 drawContent()
-                // Top Lens Refraction Curvature (Apple iOS Glass Convex Highlight)
-                if (refractionHeightFactor > 0.05f) {
-                    val highlightHeight = size.height * (0.35f * refractionHeightFactor)
+                if (refractionHeightFactor > 0.02f) {
+                    val highlightHeight = size.height * (0.32f * refractionHeightFactor)
                     val cornerRadiusVal = with(density) { 22.dp.toPx() }
 
-                    // Convex light bar
+                    // Convex light sheen
                     drawRoundRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.22f * refractionFactor),
-                                accentColor.copy(alpha = 0.08f * vibrancyFactor),
+                                Color.White.copy(alpha = 0.20f * refractionFactor),
+                                accentColor.copy(alpha = 0.06f * vibrancyFactor),
                                 Color.Transparent
                             ),
                             startY = 0f,
@@ -230,14 +202,14 @@ fun LiquidGlassCard(
                     drawRoundRect(
                         brush = Brush.horizontalGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.70f * refractionFactor),
-                                GlassSpecularShine.copy(alpha = 0.50f * refractionFactor),
-                                accentColor.copy(alpha = 0.30f),
+                                Color.White.copy(alpha = 0.65f * refractionFactor),
+                                GlassSpecularShine.copy(alpha = 0.45f * refractionFactor),
+                                accentColor.copy(alpha = 0.25f),
                                 Color.Transparent
                             )
                         ),
                         topLeft = Offset(0f, 0f),
-                        size = Size(size.width, with(density) { 1.5.dp.toPx() }),
+                        size = Size(size.width, with(density) { 1.2.dp.toPx() }),
                         cornerRadius = CornerRadius(cornerRadiusVal, cornerRadiusVal),
                         style = Stroke(width = with(density) { 1.dp.toPx() })
                     )

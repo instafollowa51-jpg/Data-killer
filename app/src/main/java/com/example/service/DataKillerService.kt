@@ -27,6 +27,41 @@ class DataKillerService : Service() {
         const val ACTION_STOP = "com.example.action.STOP"
         const val EXTRA_SPEED = "extra_speed"
         const val EXTRA_BURNED = "extra_burned"
+        private var lastUpdateTime = 0L
+
+        fun updateNotification(context: Context, speed: String, burned: String) {
+            val now = System.currentTimeMillis()
+            if (now - lastUpdateTime < 2000L) return // Throttle notification updates to once every 2 seconds
+            lastUpdateTime = now
+
+            try {
+                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                if (notificationManager != null) {
+                    val openAppIntent = Intent(context, MainActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    }
+                    val pendingIntent = PendingIntent.getActivity(
+                        context,
+                        0,
+                        openAppIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+
+                    val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+                        .setContentTitle("DATA KILLER Active")
+                        .setContentText("Speed: $speed • Consumed: $burned")
+                        .setSmallIcon(android.R.drawable.stat_sys_download)
+                        .setContentIntent(pendingIntent)
+                        .setOngoing(true)
+                        .setOnlyAlertOnce(true)
+                        .setPriority(NotificationCompat.PRIORITY_LOW)
+                        .setCategory(NotificationCompat.CATEGORY_SERVICE)
+                        .build()
+
+                    notificationManager.notify(NOTIFICATION_ID, notification)
+                }
+            } catch (_: Exception) {}
+        }
 
         fun startService(context: Context) {
             try {

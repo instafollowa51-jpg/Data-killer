@@ -19,6 +19,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -73,17 +75,21 @@ fun SpeedometerGauge(
 
     val peakFraction = (peakSpeedMbps / maxScale).toFloat().coerceIn(0f, 1f)
 
-    // Pulsing core animation for active stress testing
+    // Pulsing core animation only when actively stress testing
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val pulseGlow by infiniteTransition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(900, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulse_glow"
-    )
+    val pulseGlow by if (isRunning) {
+        infiniteTransition.animateFloat(
+            initialValue = 0.35f,
+            targetValue = 1.0f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(900, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "pulse_glow"
+        )
+    } else {
+        remember { androidx.compose.runtime.mutableFloatStateOf(0.5f) }
+    }
 
     val displaySpeed = FormatUtils.formatSpeedValue(currentSpeedMbps, speedUnit)
 

@@ -12,9 +12,14 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -22,6 +27,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -33,21 +39,16 @@ import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Whatshot
-import androidx.compose.material.icons.outlined.History
-import androidx.compose.material.icons.outlined.NetworkCheck
-import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -62,12 +63,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.DataKillerViewModel
 import com.example.ui.components.AmbientLiquidMeshBackground
 import com.example.ui.components.DashboardScreen
 import com.example.ui.components.HistoryTab
+import com.example.ui.components.LiquidGlassMultiTileNavBar
 import com.example.ui.components.LocalLiquidGlassConfig
 import com.example.ui.components.SessionSummaryDialog
 import com.example.ui.components.SettingsBottomSheet
@@ -181,70 +182,14 @@ class MainActivity : ComponentActivity() {
                                 )
                             },
                             bottomBar = {
-                                NavigationBar(
-                                    containerColor = ObsidianSurfaceElevated.copy(alpha = 0.92f),
+                                Box(
                                     modifier = Modifier
                                         .windowInsetsPadding(WindowInsets.navigationBars)
-                                        .testTag("main_navigation_bar")
+                                        .fillMaxWidth()
                                 ) {
-                                    NavigationBarItem(
-                                        selected = currentTab == 0,
-                                        onClick = { viewModel.setCurrentTab(0) },
-                                        icon = {
-                                            Icon(
-                                                imageVector = if (currentTab == 0) Icons.Filled.Speed else Icons.Outlined.Speed,
-                                                contentDescription = "Dashboard"
-                                            )
-                                        },
-                                        label = { Text("Dashboard", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                                        colors = NavigationBarItemDefaults.colors(
-                                            selectedIconColor = NeonLime,
-                                            selectedTextColor = NeonLime,
-                                            unselectedIconColor = TextMediumEmphasis,
-                                            unselectedTextColor = TextMediumEmphasis,
-                                            indicatorColor = AndroidGreen.copy(alpha = 0.22f)
-                                        ),
-                                        modifier = Modifier.testTag("nav_item_dashboard")
-                                    )
-
-                                    NavigationBarItem(
-                                        selected = currentTab == 1,
-                                        onClick = { viewModel.setCurrentTab(1) },
-                                        icon = {
-                                            Icon(
-                                                imageVector = if (currentTab == 1) Icons.Filled.NetworkCheck else Icons.Outlined.NetworkCheck,
-                                                contentDescription = "Telemetry"
-                                            )
-                                        },
-                                        label = { Text("Telemetry", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                                        colors = NavigationBarItemDefaults.colors(
-                                            selectedIconColor = HologramCyan,
-                                            selectedTextColor = HologramCyan,
-                                            unselectedIconColor = TextMediumEmphasis,
-                                            unselectedTextColor = TextMediumEmphasis,
-                                            indicatorColor = HologramCyan.copy(alpha = 0.22f)
-                                        ),
-                                        modifier = Modifier.testTag("nav_item_telemetry")
-                                    )
-
-                                    NavigationBarItem(
-                                        selected = currentTab == 2,
-                                        onClick = { viewModel.setCurrentTab(2) },
-                                        icon = {
-                                            Icon(
-                                                imageVector = if (currentTab == 2) Icons.Filled.History else Icons.Outlined.History,
-                                                contentDescription = "History"
-                                            )
-                                        },
-                                        label = { Text("History", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                                        colors = NavigationBarItemDefaults.colors(
-                                            selectedIconColor = AndroidGreen,
-                                            selectedTextColor = AndroidGreen,
-                                            unselectedIconColor = TextMediumEmphasis,
-                                            unselectedTextColor = TextMediumEmphasis,
-                                            indicatorColor = AndroidGreen.copy(alpha = 0.22f)
-                                        ),
-                                        modifier = Modifier.testTag("nav_item_history")
+                                    LiquidGlassMultiTileNavBar(
+                                        selectedTab = currentTab,
+                                        onTabSelected = { newTab -> viewModel.setCurrentTab(newTab) }
                                     )
                                 }
                             }
@@ -256,8 +201,36 @@ class MainActivity : ComponentActivity() {
                             ) {
                                 AnimatedContent(
                                     targetState = currentTab,
-                                    transitionSpec = { fadeIn(tween(250)) togetherWith fadeOut(tween(250)) },
-                                    label = "tab_transition"
+                                    transitionSpec = {
+                                        if (targetState > initialState) {
+                                            (slideInHorizontally(
+                                                animationSpec = spring(
+                                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                                    stiffness = Spring.StiffnessMediumLow
+                                                ),
+                                                initialOffsetX = { fullWidth -> (fullWidth * 0.40f).toInt() }
+                                            ) + fadeIn(tween(300, easing = FastOutSlowInEasing))).togetherWith(
+                                                slideOutHorizontally(
+                                                    animationSpec = tween(250),
+                                                    targetOffsetX = { fullWidth -> (-fullWidth * 0.30f).toInt() }
+                                                ) + fadeOut(tween(200))
+                                            )
+                                        } else {
+                                            (slideInHorizontally(
+                                                animationSpec = spring(
+                                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                                    stiffness = Spring.StiffnessMediumLow
+                                                ),
+                                                initialOffsetX = { fullWidth -> (-fullWidth * 0.40f).toInt() }
+                                            ) + fadeIn(tween(300, easing = FastOutSlowInEasing))).togetherWith(
+                                                slideOutHorizontally(
+                                                    animationSpec = tween(250),
+                                                    targetOffsetX = { fullWidth -> (fullWidth * 0.30f).toInt() }
+                                                ) + fadeOut(tween(200))
+                                            )
+                                        }
+                                    },
+                                    label = "fluid_tab_transition"
                                 ) { tab ->
                                     when (tab) {
                                         0 -> DashboardScreen(

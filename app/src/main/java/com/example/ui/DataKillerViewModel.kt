@@ -103,20 +103,13 @@ class DataKillerViewModel(application: Application) : AndroidViewModel(applicati
     private var sessionStartTimeMillis = 0L
 
     init {
-        // Collect stats to update foreground service notification
+        // Collect stats to update foreground service notification smoothly
         viewModelScope.launch {
             engineStats.collect { stats ->
                 if (stats.isRunning && !stats.isPaused) {
                     val speedStr = FormatUtils.formatSpeed(stats.currentTotalSpeedMbps, _speedUnit.value)
                     val burnedStr = FormatUtils.formatBytes(stats.totalBytesBurned)
-
-                    val intent = Intent(getApplication(), DataKillerService::class.java).apply {
-                        putExtra(DataKillerService.EXTRA_SPEED, speedStr)
-                        putExtra(DataKillerService.EXTRA_BURNED, burnedStr)
-                    }
-                    try {
-                        getApplication<Application>().startService(intent)
-                    } catch (_: Exception) {}
+                    DataKillerService.updateNotification(getApplication(), speedStr, burnedStr)
                 }
 
                 if ((stats.limitReached || stats.durationReached) && stats.isRunning) {

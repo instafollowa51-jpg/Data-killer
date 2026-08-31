@@ -1,6 +1,16 @@
 package com.example.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -215,11 +226,17 @@ fun HistoryTab(
             }
         } else {
             items(sessions, key = { it.id }) { session ->
-                SessionHistoryCard(
-                    session = session,
-                    speedUnit = speedUnit,
-                    onDelete = { onDeleteSession(session) }
-                )
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = true,
+                    enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.expandVertically(),
+                    exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.shrinkVertically()
+                ) {
+                    SessionHistoryCard(
+                        session = session,
+                        speedUnit = speedUnit,
+                        onDelete = { onDeleteSession(session) }
+                    )
+                }
             }
         }
 
@@ -315,14 +332,27 @@ private fun SessionHistoryCard(
                         )
                     }
                     Spacer(modifier = Modifier.width(4.dp))
+                    val deleteInteraction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                    val isDeletePressed by deleteInteraction.collectIsPressedAsState()
+                    val deleteScale by androidx.compose.animation.core.animateFloatAsState(
+                        targetValue = if (isDeletePressed) 0.82f else 1.0f,
+                        animationSpec = androidx.compose.animation.core.spring(
+                            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy
+                        ),
+                        label = "delete_scale"
+                    )
+
                     IconButton(
                         onClick = onDelete,
-                        modifier = Modifier.size(28.dp)
+                        interactionSource = deleteInteraction,
+                        modifier = Modifier
+                            .size(28.dp)
+                            .scale(deleteScale)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = "Delete Session",
-                            tint = TextDisabled,
+                            tint = LaserRose.copy(alpha = 0.8f),
                             modifier = Modifier.size(16.dp)
                         )
                     }
