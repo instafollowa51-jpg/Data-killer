@@ -1,0 +1,6 @@
+{
+  "name": "DATA KILLER",
+  "description": "Continuous high-bandwidth internet stress testing & unlimited data consumer with real-time speed, peak rate, ping monitoring, and session logs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
