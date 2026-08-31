@@ -332,7 +332,7 @@ fun TelemetryTab(
 }
 
 @Composable
-private fun DiagMetricBox(
+fun DiagMetricBox(
     title: String,
     value: String,
     subtitle: String? = null,

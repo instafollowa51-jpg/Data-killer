@@ -30,10 +30,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.NetworkCheck
+import androidx.compose.material.icons.filled.Radar
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.outlined.Analytics
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.NetworkCheck
+import androidx.compose.material.icons.outlined.Radar
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -61,6 +63,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.AndroidGreen
+import com.example.ui.theme.CyberMint
 import com.example.ui.theme.GlassSpecularShine
 import com.example.ui.theme.HologramCyan
 import com.example.ui.theme.LaserRose
@@ -105,6 +108,15 @@ fun LiquidGlassMultiTileNavBar(
         ),
         NavTileItem(
             index = 1,
+            title = "Strength",
+            subtitle = "Stability",
+            selectedIcon = Icons.Filled.Radar,
+            unselectedIcon = Icons.Outlined.Radar,
+            accentColor = CyberMint,
+            testTag = "nav_item_strength"
+        ),
+        NavTileItem(
+            index = 2,
             title = "Telemetry",
             subtitle = "Live Ping",
             selectedIcon = Icons.Filled.NetworkCheck,
@@ -113,7 +125,7 @@ fun LiquidGlassMultiTileNavBar(
             testTag = "nav_item_telemetry"
         ),
         NavTileItem(
-            index = 2,
+            index = 3,
             title = "History",
             subtitle = "Saved Logs",
             selectedIcon = Icons.Filled.History,

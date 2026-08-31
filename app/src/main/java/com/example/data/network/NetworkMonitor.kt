@@ -25,6 +25,8 @@ data class NetworkInfoState(
     val linkSpeedMbps: Int = 0,
     val frequencyMhz: Int = 0,
     val signalStrengthLevel: Int = 0, // 0 to 4
+    val rssiDbm: Int = -60, // dBm level
+    val signalPercent: Int = 0, // 0 to 100%
     val localIpAddress: String = "Unknown",
     val isMetered: Boolean = false,
     val activeRoutingMode: NetworkRoutingMode = NetworkRoutingMode.AUTO_ALL
@@ -34,7 +36,25 @@ data class NetworkInfoState(
             frequencyMhz in 2400..2499 -> "2.4 GHz"
             frequencyMhz in 4900..5900 -> "5 GHz"
             frequencyMhz > 5900 -> "6 GHz (Wi-Fi 6E/7)"
-            else -> ""
+            else -> if (type == NetworkType.CELLULAR) "5G / LTE" else ""
+        }
+
+    val channel: Int
+        get() = when {
+            frequencyMhz in 2412..2484 -> (frequencyMhz - 2407) / 5
+            frequencyMhz in 5170..5825 -> (frequencyMhz - 5000) / 5
+            frequencyMhz in 5955..7115 -> (frequencyMhz - 5950) / 5
+            else -> 0
+        }
+
+    val standardProtocol: String
+        get() = when {
+            frequencyMhz > 5900 -> "Wi-Fi 6E / 7 (802.11ax/be)"
+            frequencyMhz in 4900..5900 -> "Wi-Fi 5 / 6 (802.11ac/ax)"
+            frequencyMhz in 2400..2499 -> "Wi-Fi 4 (802.11n)"
+            type == NetworkType.CELLULAR -> "Cellular 5G NR / LTE-A"
+            type == NetworkType.ETHERNET -> "Gigabit Ethernet (802.3ab)"
+            else -> "Standard Protocol"
         }
 }
 
@@ -173,6 +193,7 @@ class NetworkMonitor(private val context: Context) {
                 var linkSpeed = capabilities.linkDownstreamBandwidthKbps / 1000
                 var freq = 0
                 var signal = 4
+                var rssiDbm = -55
 
                 try {
                     val wifiInfo: WifiInfo? = wifiManager?.connectionInfo
@@ -185,9 +206,15 @@ class NetworkMonitor(private val context: Context) {
                             linkSpeed = wifiInfo.linkSpeed
                         }
                         freq = wifiInfo.frequency
-                        signal = WifiManager.calculateSignalLevel(wifiInfo.rssi, 5)
+                        if (wifiInfo.rssi != -127 && wifiInfo.rssi != 0) {
+                            rssiDbm = wifiInfo.rssi
+                        }
+                        signal = WifiManager.calculateSignalLevel(rssiDbm, 5)
                     }
                 } catch (_: Exception) {}
+
+                // Convert dBm to 0-100% (-100 dBm = 0%, -50 dBm = 100%)
+                val signalPct = ((rssiDbm + 100) * 2).coerceIn(5, 100)
 
                 NetworkInfoState(
                     isConnected = isConnected,
@@ -199,6 +226,8 @@ class NetworkMonitor(private val context: Context) {
                     linkSpeedMbps = linkSpeed,
                     frequencyMhz = freq,
                     signalStrengthLevel = signal,
+                    rssiDbm = rssiDbm,
+                    signalPercent = signalPct,
                     localIpAddress = ip,
                     isMetered = isMetered
                 )
@@ -209,6 +238,8 @@ class NetworkMonitor(private val context: Context) {
                     ?: "Cellular Provider"
 
                 val downstreamMbps = capabilities.linkDownstreamBandwidthKbps / 1000
+                val defaultCellularDbm = -75
+                val cellPct = ((defaultCellularDbm + 110) * 1.8).toInt().coerceIn(10, 95)
 
                 NetworkInfoState(
                     isConnected = isConnected,
@@ -220,6 +251,8 @@ class NetworkMonitor(private val context: Context) {
                     linkSpeedMbps = downstreamMbps,
                     frequencyMhz = 0,
                     signalStrengthLevel = 4,
+                    rssiDbm = defaultCellularDbm,
+                    signalPercent = cellPct,
                     localIpAddress = ip,
                     isMetered = true
                 )
@@ -232,7 +265,10 @@ class NetworkMonitor(private val context: Context) {
                     type = NetworkType.ETHERNET,
                     typeName = "Ethernet",
                     operatorOrSsid = "Wired Connection",
-                    linkSpeedMbps = capabilities.linkDownstreamBandwidthKbps / 1000,
+                    linkSpeedMbps = (capabilities.linkDownstreamBandwidthKbps / 1000).coerceAtLeast(1000),
+                    signalStrengthLevel = 4,
+                    rssiDbm = -30,
+                    signalPercent = 100,
                     localIpAddress = ip,
                     isMetered = false
                 )

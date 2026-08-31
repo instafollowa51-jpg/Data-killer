@@ -70,6 +70,7 @@ import com.example.ui.components.DashboardScreen
 import com.example.ui.components.HistoryTab
 import com.example.ui.components.LiquidGlassMultiTileNavBar
 import com.example.ui.components.LocalLiquidGlassConfig
+import com.example.ui.components.NetworkStrengthScreen
 import com.example.ui.components.SessionSummaryDialog
 import com.example.ui.components.SettingsBottomSheet
 import com.example.ui.components.TelemetryTab
@@ -108,6 +109,7 @@ class MainActivity : ComponentActivity() {
                 val keepScreenOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
                 val liquidGlassConfig by viewModel.liquidGlassConfig.collectAsStateWithLifecycle()
                 val currentTab by viewModel.currentTab.collectAsStateWithLifecycle()
+                val stabilityAnalysis by viewModel.stabilityAnalysis.collectAsStateWithLifecycle()
                 val completedSession by viewModel.completedSessionResult.collectAsStateWithLifecycle()
 
                 var showSettingsSheet by remember { mutableStateOf(false) }
@@ -250,12 +252,17 @@ class MainActivity : ComponentActivity() {
                                                 viewModel.setTargetDurationSeconds(seconds)
                                             }
                                         )
-                                        1 -> TelemetryTab(
+                                        1 -> NetworkStrengthScreen(
+                                            analysis = stabilityAnalysis,
+                                            networkInfo = networkInfo,
+                                            onTriggerDeepTest = { viewModel.triggerDeepStabilityTest() }
+                                        )
+                                        2 -> TelemetryTab(
                                             stats = stats,
                                             networkInfo = networkInfo,
                                             speedUnit = speedUnit
                                         )
-                                        2 -> HistoryTab(
+                                        3 -> HistoryTab(
                                             sessions = allSessions,
                                             totalLifetimeBurned = totalLifetimeBurned ?: 0L,
                                             allTimePeakSpeed = allTimePeakSpeed ?: 0.0,
